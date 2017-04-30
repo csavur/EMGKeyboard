@@ -20,11 +20,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     loadSubjects();
 
-    m_tcpConnection = NULL;
+    m_socket = NULL;
     ui->spinBoxIteration->setMaximum(ui->spinBoxRepeated->value());
 
-    connect(&m_tcpServer, SIGNAL(newConnection()), this, SLOT(slotAcceptConnection()));
-    m_tcpServer.listen(QHostAddress::AnyIPv4, ui->spinBoxPort->value());
+    m_socket = new QTcpSocket(this);
 
     connect(ui->spinBoxRepeated, SIGNAL(valueChanged(int)), this, SLOT(slotUpdateIteration()));
 
@@ -83,7 +82,7 @@ void MainWindow::loadSubjects()
 
 void MainWindow::readFile(QString fileName)
 {
-    int w = ui->spinBoxPoint->value();
+    int w = 400;
     int repeated = ui->spinBoxRepeated->value();
 
     fileName.append(".csv");
@@ -121,7 +120,7 @@ void MainWindow::sendData(int classID)
 {
     Data d = m_subjectData.at(classID);
 
-    int w = ui->spinBoxPoint->value();
+    int w = ui->spinBoxCH->value()*(400/(2000/ui->spinBoxInteval->value()));
 
     m_buffer.clear();
     int iter = ui->spinBoxIteration->value()-1;
@@ -147,10 +146,12 @@ void MainWindow::sendData(int classID)
 void MainWindow::slotWriteSocket()
 {
     static int count = 0;
-    if(m_tcpConnection) {
+    if(m_socket) {
         QString data;
-        for (int i = 0; i < 50; ++i) {
-            data.append(m_buffer.at(count*50 + i));
+        int interval = ui->spinBoxInteval->value();
+        int points = 400/(2000/interval);
+        for (int i = 0; i < points; ++i) {
+            data.append(m_buffer.at(count*points + i));
             data.append(", ");
         }
         count++;
@@ -159,10 +160,10 @@ void MainWindow::slotWriteSocket()
         byteArray.append(data);
         byteArray.append("\n");
 
-        m_tcpConnection->write(byteArray);
-        m_tcpConnection->flush();
+        m_socket->write(byteArray);
+        m_socket->flush();
 
-        cout << "Count " << count << "size buffer" << byteArray.size() << endl;
+        cout << "CH: " << count << " points: " << points << endl;
         if(count == ui->spinBoxCH->value()) {
             count = 0;
             m_timer.stop();
@@ -191,13 +192,8 @@ void MainWindow::slotPushButtonSender()
     QApplication::setOverrideCursor(Qt::WaitCursor);
     int classId = button->objectName().split("_").at(1).toInt();
     qDebug() << "Class ID : " << classId;
-    sendData(classId);
-}
 
-void MainWindow::slotAcceptConnection()
-{
-    m_tcpConnection = m_tcpServer.nextPendingConnection();
-    qDebug() << "Got a new Connection" ;
+    sendData(classId);
 }
 
 void MainWindow::on_comboBoxSubject_activated(const QString &arg1)
@@ -218,8 +214,17 @@ void MainWindow::on_actionAbout_triggered()
                                                    "please contact c.savur@gmail.com"));
 }
 
-void MainWindow::on_spinBoxPort_editingFinished()
+void MainWindow::on_pushButtonConnect_clicked(bool checked)
 {
-    m_tcpServer.close();
-    m_tcpServer.listen(QHostAddress::AnyIPv4, ui->spinBoxPort->value());
+    if(checked){
+        m_socket->connectToHost(QHostAddress::LocalHost, ui->spinBoxPort->value());
+
+        if (m_socket->waitForConnected(3000))
+            qDebug("Connected!");
+        else
+            qDebug("Not Connected!, make sure server is running!");
+
+    } else {
+        m_socket->disconnectFromHost();
+    }
 }

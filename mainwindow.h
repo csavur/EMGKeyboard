@@ -33,7 +33,6 @@ private:
 
 private slots:
     void slotPushButtonSender();
-    void slotAcceptConnection();
     void slotWriteSocket();
     void slotUpdateIteration();
 
@@ -41,7 +40,7 @@ private slots:
     void on_actionAbout_Qt_triggered();
     void on_actionAbout_triggered();
 
-    void on_spinBoxPort_editingFinished();
+    void on_pushButtonConnect_clicked(bool checked);
 
 private:
     Ui::MainWindow *ui;
@@ -49,7 +48,7 @@ private:
     QList<Data> m_subjectData;
 
     QTcpServer m_tcpServer;
-    QTcpSocket *m_tcpConnection;
+    QTcpSocket *m_socket;
 
     QTimer m_timer;
     QStringList m_buffer;
